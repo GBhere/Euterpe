@@ -85,6 +85,7 @@ def pronounce_number(w):
     audio=ads.empty()
     for i in inttoword(int(w)).split():
         audio+=pronounce_word(i)
+        audio+=ads.silent(20)
     return audio
         
 
@@ -178,7 +179,6 @@ def pronounce_word(w):
                     else:
                         audio = add_overlay(audio,sound,20)
                 i+=1
-            return funnel_down_soft(audio)+ ads.silent(25)
-
+            return funnel_down_soft(audio)
 
 

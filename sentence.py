@@ -15,11 +15,14 @@ def say(text):
     punctuations = ['.',',',';',':','?','!']
     text+='.'
     text = re.split('([^a-zA-Z0-9\'])',text)
-    output = ads.empty()
+    output = ads.silent(5)
     last_word=ads.empty()
     for i in text:
         if i.isspace() or i=='':
             output+=last_word
+            if len(last_word) != 0:
+            	output+=ads.silent(50)
+            last_word=ads.empty()
         elif i in punctuations:
             output += pronounce_with_punctuations(last_word)
             last_word=ads.empty()
