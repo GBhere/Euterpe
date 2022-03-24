@@ -1,14 +1,15 @@
 from pydub import AudioSegment as ads
 from pydub import effects
-from pydub import playback as play
+from pydub.playback import play
 import re,eng_to_ipa
 from os import listdir
 from os.path import isfile, join
 
+status=''
 
 syllables = [f[:-4] for f in listdir("./assets/eng/") if isfile(join("./assets/eng/", f))]
 syllables.sort(key=len,reverse=True)
-symbols = ['<', '>', '/', '\\', '|', '@', '#', '%', '&', '*', '+', '-', '~', '^']
+symbols = {'<':"less than", '>':'greater than','_':'underscore', '/':'slash', '\\':'back slash', '|':'pipe', '@':'at the rate', '#':'hash', '%':'percent', '&':'and', '*':'asterisk', '+':'plus', '-':'minus', '~':'tilda', '^':'caret'}
 
 
 def funnel_up_soft(audio, position=-30, step=5, duration=30, gain_per_step=0.8):
@@ -59,7 +60,6 @@ def add_overlay(audio1 , audio2, length=30):
     return audio1.fade_out(30).overlay(audio2, position= -length, gain_during_overlay=-6) + funnel_up_soft( (audio2[length: min(50, y-length)] -5 ) , position=0, step=5,duration=min(50, y-length),gain_per_step=0.5 ) + audio2[min(50, y-length):]
 
 def is_acronym(w):
-    # for now acronym is word in all capital letters
     if w==w.upper():
         return True
     return False
@@ -67,11 +67,11 @@ def is_acronym(w):
 def pronounce_alphabet(a):
     return funnel_down_soft(ads.from_wav("assets/alphabets/"+a+".wav").fade_in(30))
 
-def pronounce_digit(a):
-    return funnel_down_soft(ads.from_wav("assets/digits/"+a+".wav").fade_in(30))
-
 def pronounce_symbol(a):
-    return funnel_down_soft(ads.from_wav("assets/digits/"+a+".wav").fade_in(30))
+    audio = ads.empty()
+    for i in symbols[a].split():
+        audio+=pronounce_word(i)
+    return audio
 
 def pronounce_acronym(w):
     w=w.lower()
@@ -122,29 +122,36 @@ def inttoword(x):
 
 
 def pronounce_word(w):
+    #print(w)
     audio = ads.empty()
     if len(w) == 1:
         w=w.lower()
         if w.isalpha():
+            status='word'
             return pronounce_alphabet(w)
         elif w.isdigit():
+            status = 'number'
             return pronounce_number(int(w))
         elif w in symbols:
+            status = 'symbol'
             return pronounce_symbol(w)
         else:
             return audio
     else:
         if w.isdigit():
+            status = 'number'
             return pronounce_number(int(w))
         if is_acronym(w):
+            status = 'word'
             return pronounce_acronym(w)
         if w.isalpha():
             ipa = eng_to_ipa.convert(w)
             if ipa[-1]=="*":
+                status = 'word'
                 return effects.speedup(pronounce_acronym(w),1.2)
             
             list_of_syllables = re.split('({})'.format("|".join(syllables)), ipa)
-            # print(list_of_syllables)
+            #print(list_of_syllables)
             audio = ads.empty()
             last=ads.empty()
             i=0
@@ -172,13 +179,32 @@ def pronounce_word(w):
                         audio = add_overlay(audio,sound,40)
                     else:
                         audio = add_overlay(audio,sound,20)
+                    i+=1
                 else:
                     sound = ads.from_wav("./assets/eng/"+list_of_syllables[i]+".wav")
                     if len(list_of_syllables[i])==1:
-                        audio = add_overlay(audio,sound,40)
+                        audio = add_overlay(audio,sound,30)
                     else:
-                        audio = add_overlay(audio,sound,20)
+                        audio = add_overlay(audio,sound,25)
                 i+=1
-            return funnel_down_soft(audio)
+            # play(audio)
+            status = 'word'
+            try:
+            	return effects.speedup(funnel_down_soft(audio), 1.21)
+            except:
+            	return funnel_down_soft(audio)
+            
+        else:
+            if "'" in w:
+                if "'s" == w[-2:]:
+                    s= ads.from_wav("./assets/eng/s.wav")
+                    
+                    return add_overlay(pronounce_word(w[:-2]), s, 30)
+                else:
+                    w= w.replace("'",'')
+                    return pronounce_word(w)
+            else:
+                return ads.silent(50)
+
 
 
